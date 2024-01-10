@@ -1,0 +1,54 @@
+# You can override the included template(s) by including variable overrides
+# SAST customization: https://docs.gitlab.com/ee/user/application_security/sast/#customizing-the-sast-settings
+# Secret Detection customization: https://docs.gitlab.com/ee/user/application_security/secret_detection/#customizing-settings
+# Dependency Scanning customization: https://docs.gitlab.com/ee/user/application_security/dependency_scanning/#customizing-the-dependency-scanning-settings
+# Container Scanning customization: https://docs.gitlab.com/ee/user/application_security/container_scanning/#customizing-the-container-scanning-settings
+# Note that environment variables can be set in several places
+# See https://docs.gitlab.com/ee/ci/variables/#cicd-variable-precedence
+
+variables:
+  http_proxy: $CODE_PROXY
+  https_proxy: $CODE_PROXY
+  no_proxy: $CODE_NO_PROXY
+  # Docker uses upper-case variables
+  HTTP_PROXY: $CODE_PROXY
+  HTTPS_PROXY: $CODE_PROXY
+  NO_PROXY: $CODE_NO_PROXY
+
+stages:
+- build
+- test
+
+mainBuild:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  script:
+    - export DOCKER_CONFIG=/kaniko/.docker/
+    - export
+    - pwd
+    - ls -lah
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor
+     --verbosity=trace
+     --ignore-path=$CI_PROJECT_DIR
+     --context $CI_PROJECT_DIR
+     --single-snapshot
+     --cache=true
+     --cleanup
+     --dockerfile "$CI_PROJECT_DIR/PROXY Protocol Tester/Dockerfile"
+     --build-arg http_proxy
+     --build-arg https_proxy
+     --build-arg no_proxy
+     --build-arg HTTP_PROXY
+     --build-arg HTTPS_PROXY
+     --build-arg NO_PROXY 
+     --build-arg EAGLE_HTTP_PROXY
+     --build-arg EAGLE_HTTPS_PROXY
+     --destination $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+
+sast:
+  stage: test
+include:
+- template: Security/SAST.gitlab-ci.yml
